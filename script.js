@@ -1,6 +1,6 @@
 let dados = [];
 let tema = localStorage.getItem('tema') || 'light';
-let usuarioId = localStorage.getItem('usuarioId') || 'user_' + Date.now();
+let usuarioId = 'usuario-global'; // ID fixo para sincronizar entre dispositivos
 let db = null;
 let firebaseReady = false;
 
@@ -21,20 +21,23 @@ const firebaseConfig = {
 
 // Tentar inicializar Firebase se disponível (sem erros)
 function inicializarFirebaseSeDisponivel() {
+  console.log('🔧 Tentando inicializar Firebase...');
   try {
     if (typeof firebase !== 'undefined' && firebase.initializeApp) {
+      console.log('✅ Firebase SDK detectado');
       if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
         db = firebase.database();
         firebaseReady = true;
-        console.log('✅ Firebase inicializado com sucesso!');
+        console.log('✅ Firebase ATIVADO! Usuário ID:', usuarioId);
+        console.log('🗄️ Base de dados pronta para sincronizar');
         sincronizarComFirebase();
       }
     } else {
-      console.log('ℹ️ Firebase não disponível - usando localStorage');
+      console.log('⚠️ Firebase SDK não encontrado - usando localStorage');
     }
   } catch (erro) {
-    console.log('ℹ️ Firebase não disponível:', erro.message);
+    console.log('⚠️ Erro ao init Firebase:', erro.message);
   }
 }
 
@@ -46,9 +49,23 @@ function sincronizarComFirebase() {
     console.log('📡 Sincronizando com Firebase:', caminho);
     
     // Sincronizar: carregar dados do Firebase em tempo real
-    db.ref(caminho).on('value', (snapshot) => {
+    // Registrar listener para mudanças em tempo real
+    const listener = db.ref(caminho).on('value', (snapshot) => {
       const dadosFirebase = snapshot.val();
-      console.log('📥 Dados recebidos do Firebase:', dadosFirebase ? Object.keys(dadosFirebase).length + ' itens' : 'vazio');
+      if (dadosFirebase) {
+        const itemCount = Array.isArray(dadosFirebase) ? dadosFirebase.length : Object.keys(dadosFirebase).length;
+        console.log('📥 Dados do Firebase:', itemCount, 'itens');
+        
+        // Se é um objeto, pode ser um array ou objeto com IDs como chaves
+        if (!Array.isArray(dadosFirebase)) {
+          dados = Object.values(dadosFirebase);
+        } else {
+          dados = dadosFirebase;
+        }
+      } else {
+        console.log('📥 Firebase vazio - nenhum dado');
+        dados = [];
+      }
       
       if (dadosFirebase && typeof dadosFirebase === 'object') {
         // Converter objeto do Firebase para array
