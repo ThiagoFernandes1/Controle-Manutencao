@@ -1,8 +1,11 @@
 let dados = [];
 let tema = localStorage.getItem('tema') || 'light';
-let usuarioId = localStorage.getItem('usuarioId');
+let usuarioId = localStorage.getItem('usuarioId') || 'user_' + Date.now();
 let db = null;
 let firebaseReady = false;
+
+// Salvar usuarioId se novo
+localStorage.setItem('usuarioId', usuarioId);
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -16,119 +19,48 @@ const firebaseConfig = {
   measurementId: "G-1R3QZ0T16P"
 };
 
-// Esperar Firebase carregar
-function iniciarAplicacao() {
+// Tentar inicializar Firebase se disponível (sem erros)
+function inicializarFirebaseSeDisponivel() {
   try {
-    console.log('🔥 Verificando se Firebase está disponível...');
-    
-    if (typeof firebase === 'undefined') {
-      console.error('❌ Firebase não está definido no escopo global');
-      console.log('window.firebase:', window.firebase);
-      throw new Error('Firebase não foi carregado pelos scripts CDN');
-    }
-
-    if (!firebase.initializeApp) {
-      console.error('❌ firebase.initializeApp não existe');
-      throw new Error('Firebase SDK não foi carregado corretamente');
-    }
-
-    console.log('✅ Firebase SDK encontrado!');
-    console.log('projectId:', firebaseConfig.projectId);
-    console.log('databaseURL:', firebaseConfig.databaseURL);
-
-    if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-      db = firebase.database();
-      firebaseReady = true;
-      console.log('✅ Firebase inicializado com sucesso!');
-      console.log('🗄️ Conectado ao banco:', firebaseConfig.projectId);
-    }
-    
-    if (!usuarioId) {
-      usuarioId = 'user_' + Date.now();
-      localStorage.setItem('usuarioId', usuarioId);
-      console.log('📱 Novo usuário:', usuarioId);
+    if (typeof firebase !== 'undefined' && firebase.initializeApp) {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.database();
+        firebaseReady = true;
+        console.log('✅ Firebase inicializado com sucesso!');
+        sincronizarComFirebase();
+      }
     } else {
-      console.log('👤 Usuário existente:', usuarioId);
+      console.log('ℹ️ Firebase não disponível - usando localStorage');
     }
-    
-    carregarDados();
   } catch (erro) {
-    firebaseReady = false;
-    console.error('❌ ERRO FATAL:', erro.message);
-    console.error('Stack completo:', erro.stack);
-    
-    // Log do escopo global
-    console.log('🔍 Debug Info:');
-    console.log('- firebase definido?', typeof firebase);
-    console.log('- firebase.initializeApp?', firebase && typeof firebase.initializeApp);
-    console.log('- document.readyState:', document.readyState);
-    
-    alert('⚠️ ERRO AO INICIALIZAR FIREBASE\n\n' +
-      'Erro: ' + erro.message + '\n\n' +
-      'Abra o Console (F12 > Console) e procure por mensagens em vermelho.\n\n' +
-      'Possíveis causas:\n' +
-      '1. Scripts do Firebase bloqueados pelo navegador\n' +
-      '2. Página carregada sem HTTPS (se em GitHub Pages)\n' +
-      '3. Combustor ou adicional bloqueando scripts\n\n' +
-      'Tente:\n' +
-      '- Recarregar com Ctrl+Shift+R\n' +
-      '- Desabilitar extensões do navegador\n' +
-      '- Tentar em outro navegador');
+    console.log('ℹ️ Firebase não disponível:', erro.message);
   }
 }
 
-// Aguardar que o DOM esteja pronto E os scripts do Firebase carreguem
-function aguardarEIniciar(tentativas = 0) {
-  if (tentativas > 50) { // 5 segundos
-    console.error('❌ Timeout: Firebase não carregou após 5 segundos');
-    alert('❌ Erro: Firebase não carregou!\n\nVerifique sua conexão com internet e tente recarregar a página.');
-    return;
+function sincronizarComFirebase() {
+  if (!firebaseReady || !db) return;
+  
+  try {
+    const caminho = 'usuarios/' + usuarioId + '/manutencoes';
+    
+    db.ref(caminho).on('value', (snapshot) => {
+      const dadosFirebase = snapshot.val();
+      if (dadosFirebase) {
+        dados = dadosFirebase;
+        localStorage.setItem('manutencao', JSON.stringify(dados));
+        render();
+      }
+    });
+  } catch (erro) {
+    console.log('ℹ️ Erro ao sincronizar com Firebase:', erro.message);
   }
-
-  if (document.readyState === 'loading') {
-    // DOM ainda está carregando, aguarde
-    setTimeout(() => aguardarEIniciar(tentativas + 1), 100);
-    return;
-  }
-
-  if (typeof firebase !== 'undefined' && firebase.initializeApp) {
-    // Firebase foi carregado, inicializar agora
-    iniciarAplicacao();
-    return;
-  }
-
-  // Ainda não está pronto, tentar novamente
-  console.log('⏳ Aguardando Firebase... tentativa', tentativas);
-  setTimeout(() => aguardarEIniciar(tentativas + 1), 100);
 }
 
 function carregarDados() {
-  if (!db || !firebaseReady) {
-    console.warn('⚠️ Firebase não está pronto, usando localStorage como fallback');
-    // Carregar do localStorage como backup
-    dados = JSON.parse(localStorage.getItem('manutencao')) || [];
-    render();
-    return;
-  }
-  
-  const caminho = 'usuarios/' + usuarioId + '/manutencoes';
-  console.log('📡 Carregando dados de:', caminho);
-  
-  db.ref(caminho).on('value', (snapshot) => {
-    dados = snapshot.val() || [];
-    console.log('📥 Dados carregados do Firebase:', dados.length > 0 ? dados.length + ' itens' : 'Nenhum item');
-    
-    // Também salvar no localStorage como backup
-    localStorage.setItem('manutencao', JSON.stringify(dados));
-    
-    render();
-  }, (erro) => {
-    console.error('❌ Erro ao carregar dados do Firebase:', erro);
-    // Se Firebase falhar, tentar localStorage
-    dados = JSON.parse(localStorage.getItem('manutencao')) || [];
-    render();
-  });
+  // Sempre carregar do localStorage primeiro
+  dados = JSON.parse(localStorage.getItem('manutencao')) || [];
+  render();
 }
 
 if (tema === 'dark') {
@@ -163,52 +95,25 @@ function addItem() {
       dataCriacao: new Date().toISOString()
     };
     
-    // Tentar salvar no Firebase primeiro
+    // Salvar no localStorage (principal)
+    dados.push(novoItem);
+    localStorage.setItem('manutencao', JSON.stringify(dados));
+    
+    // Tentar sincronizar com Firebase em background (sem erros)
     if (firebaseReady && db) {
       const caminho = 'usuarios/' + usuarioId + '/manutencoes/' + novoItem.id;
-      console.log('💾 Salvando no Firebase:', caminho);
-      
-      db.ref(caminho).set(novoItem)
-        .then(() => {
-          console.log('✅ Item salvo no Firebase!', novoItem.id);
-          limparFormulario();
-          alert('✅ Item adicionado com sucesso!');
-        })
-        .catch((erro) => {
-          console.error('❌ Erro ao salvar no Firebase:', erro.message);
-          // Tentar fallback localStorage
-          salvarNoLocalStorage(novoItem);
-        });
-    } else {
-      // Firebase não disponível, usar localStorage
-      console.log('⚠️ Firebase não disponível, salvando no localStorage');
-      salvarNoLocalStorage(novoItem);
+      db.ref(caminho).set(novoItem).catch(() => {});
     }
-  };
-  
-  reader.onerror = () => {
-    console.error('❌ Erro ao ler arquivo');
-    alert('❌ Erro ao processar a imagem!');
+    
+    limparFormulario();
+    alert('✅ Item adicionado com sucesso!');
+    render();
   };
   
   if (file) {
     reader.readAsDataURL(file);
   } else {
     reader.onload();
-  }
-}
-
-function salvarNoLocalStorage(novoItem) {
-  try {
-    dados.push(novoItem);
-    localStorage.setItem('manutencao', JSON.stringify(dados));
-    console.log('✅ Item salvo no localStorage!');
-    limparFormulario();
-    alert('✅ Item adicionado com sucesso!\n\n(Salvo localmente - Firebase não disponível)');
-    render();
-  } catch (erro) {
-    console.error('❌ Erro ao salvar no localStorage:', erro);
-    alert('❌ Erro ao salvar item: ' + erro.message);
   }
 }
 
@@ -224,25 +129,17 @@ function limparFormulario() {
 
 function alterarStatus(id, v) {
   const item = dados.find(d => d.id === parseInt(id));
-  if (!item) {
-    console.error('Item não encontrado:', id);
-    return;
-  }
+  if (!item) return;
 
   item.status = v;
   item.historico.push(`Status alterado para ${v} em ${new Date().toLocaleString()}`);
 
-  // Tentar salvar no Firebase
+  // Salvar no localStorage
+  localStorage.setItem('manutencao', JSON.stringify(dados));
+  
+  // Tentar sincronizar com Firebase em background
   if (firebaseReady && db) {
-    db.ref('usuarios/' + usuarioId + '/manutencoes/' + id).set(item)
-      .catch((erro) => {
-        console.error('❌ Erro ao atualizar no Firebase:', erro.message);
-        // Fallback: salvar no localStorage
-        localStorage.setItem('manutencao', JSON.stringify(dados));
-      });
-  } else {
-    // Firebase não disponível, usar localStorage
-    localStorage.setItem('manutencao', JSON.stringify(dados));
+    db.ref('usuarios/' + usuarioId + '/manutencoes/' + id).set(item).catch(() => {});
   }
   
   render();
@@ -251,22 +148,13 @@ function alterarStatus(id, v) {
 function excluir(id) {
   if (!confirm('Excluir item?')) return;
 
-  // Tentar deletar no Firebase
+  // Deletar do localStorage
+  dados = dados.filter(d => d.id !== parseInt(id));
+  localStorage.setItem('manutencao', JSON.stringify(dados));
+  
+  // Tentar deletar do Firebase em background
   if (firebaseReady && db) {
-    db.ref('usuarios/' + usuarioId + '/manutencoes/' + id).remove()
-      .then(() => {
-        console.log('✅ Item deletado do Firebase');
-      })
-      .catch((erro) => {
-        console.error('❌ Erro ao deletar do Firebase:', erro.message);
-        // Fallback: deletar do localStorage
-        dados = dados.filter(d => d.id !== parseInt(id));
-        localStorage.setItem('manutencao', JSON.stringify(dados));
-      });
-  } else {
-    // Firebase não disponível, usar localStorage
-    dados = dados.filter(d => d.id !== parseInt(id));
-    localStorage.setItem('manutencao', JSON.stringify(dados));
+    db.ref('usuarios/' + usuarioId + '/manutencoes/' + id).remove().catch(() => {});
   }
   
   render();
@@ -370,18 +258,14 @@ function atualizarGrafico(f, a, c) {
   });
 }
 
-// Inicializar a aplicação ao carregar
-console.log('📜 Script carregado');
-console.log('📍 document.readyState:', document.readyState);
+// Inicializar aplicação
+console.log('✅ App iniciando...');
+carregarDados();
+inicializarFirebaseSeDisponivel();
 
-if (document.readyState === 'loading') {
-  // DOM ainda está carregando, esperar pelo evento
-  document.addEventListener('DOMContentLoaded', () => {
-    console.log('✅ DOMContentLoaded disparado');
-    aguardarEIniciar();
-  });
-} else {
-  // DOM já está carregado
-  console.log('✅ DOM já carregado');
-  aguardarEIniciar();
-}
+// Tentar Firebase novamente depois de 2 segundos
+setTimeout(() => {
+  if (!firebaseReady) {
+    inicializarFirebaseSeDisponivel();
+  }
+}, 2000);
