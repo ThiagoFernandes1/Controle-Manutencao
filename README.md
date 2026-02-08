@@ -1,6 +1,14 @@
 # 🔧 Controle de Manutenção
 
-Um sistema web simples e intuitivo para gerenciar e controlar atividades de manutenção em sua organização.
+Um sistema web simples e intuitivo para gerenciar e controlar atividades de manutenção em sua organização, com **sincronização em nuvem via Firebase**.
+
+## ✨ Novidade: Banco de Dados em Nuvem
+
+Agora todos os seus dados são sincronizados em tempo real na nuvem! Isso significa:
+- ✅ Acesse de qualquer dispositivo
+- ✅ Dados sincronizam automaticamente
+- ✅ Nunca perca seus dados
+- ✅ Funciona offline (com sincronização quando voltar online)
 
 ## 📋 Funcionalidades
 
@@ -19,8 +27,14 @@ Um sistema web simples e intuitivo para gerenciar e controlar atividades de manu
 
 ## 🚀 Como Usar
 
-1. Abra o arquivo `index.html` em um navegador web
-2. Preencha os dados do novo item no formulário:
+### Configuração Inicial (Primeira Vez)
+
+1. **Configure o Firebase** - Siga o guia em [FIREBASE_SETUP.md](FIREBASE_SETUP.md)
+2. Abra o arquivo `index.html` em um navegador web
+
+### Usando a Aplicação
+
+1. Preencha os dados do novo item no formulário:
    - **Item**: Nome ou descrição
    - **Sala/Andar**: Localização
    - **Categoria**: Escolha uma categoria
@@ -28,12 +42,18 @@ Um sistema web simples e intuitivo para gerenciar e controlar atividades de manu
    - **Prioridade**: Nível de urgência
    - **SLA**: Data limite para conclusão
    - **Foto**: Anexe uma imagem (opcional)
-3. Clique em **Salvar** para adicionar o item
-4. Use a tabela para:
+2. Clique em **Salvar** para adicionar o item
+3. Use a tabela para:
    - Mudar o status dos itens
    - Ver histórico de alterações
    - Excluir itens (com confirmação)
-5. Filtre por categoria usando o seletor no topo da tabela
+4. Filtre por categoria usando o seletor no topo da tabela
+
+### Acessar em Outro Dispositivo
+
+1. Abra o mesmo arquivo `index.html` em outro navegador/dispositivo
+2. **Os dados aparecem automaticamente!** (desde que o Firebase esteja configurado)
+3. Qualquer mudança feita em um dispositivo aparece em tempo real nos outros
 
 ## 🛠️ Tecnologias Utilizadas
 
@@ -42,7 +62,7 @@ Um sistema web simples e intuitivo para gerenciar e controlar atividades de manu
 - **Bootstrap 5.3.2**: Framework CSS para layout responsivo
 - **Chart.js**: Gráficos de status
 - **JavaScript**: Lógica da aplicação
-- **localStorage**: Armazenamento de dados persistente
+- **Firebase Realtime Database**: Armazenamento e sincronização de dados em nuvem
 
 ## 📊 Dashboard
 
@@ -54,10 +74,14 @@ O dashboard exibe em tempo real:
 
 ## 💾 Armazenamento de Dados
 
-Todos os dados são armazenados localmente no navegador usando `localStorage`, o que significa que:
-- Os dados persistem mesmo após fechar o navegador
-- Os dados são específicos do computador e navegador
-- Limpar o cache do navegador pode resultar em perda de dados
+Com **Firebase**, todos os dados são armazenados na nuvem:
+- ✅ Sincronização em tempo real
+- ✅ Acessível de qualquer dispositivo
+- ✅ Backup automático
+- ✅ Persistência garantida
+- ✅ Escalável para múltiplos usuários
+
+**Nota**: Fotos são convertidas para base64, o que pode ocupar espaço. Para produção, considere usar Firebase Storage.
 
 ## 📱 Responsividade
 
@@ -70,12 +94,20 @@ A aplicação é totalmente responsiva e funciona em:
 
 Clique no botão **🌙 Tema** para alternar entre tema claro e escuro. Sua preferência será salva.
 
-## ⚠️ Limitações
+## ⚠️ Limitações & Próximos Passos
 
-- Dados armazenados apenas localmente (sem sincronização em nuvem)
-- Fotos são convertidas para base64 (pode ocupar espaço no navegador)
-- Sem suporte para múltiplos usuários
-- Sem backup automático
+**Versão Atual:**
+- ✅ Banco de dados em nuvem
+- ✅ Sincronização entre dispositivos
+- ⏳ Sem autenticação formal (identificação por ID único)
+- ⏳ Sem controle de acesso por usuário
+
+**Para Produção Avançada:**
+- Implementar autenticação (Gmail, Email)
+- Adicionar controle de permissões
+- Usar Firebase Storage para fotos
+- Implementar backup e recuperação
+- Adicionar relatórios em PDF
 
 ## 📝 Exemplo de Estrutura de Dados
 
