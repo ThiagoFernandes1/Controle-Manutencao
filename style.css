@@ -1,0 +1,30 @@
+:root {
+  --bg: #f4f6f9;
+  --card: #fff;
+  --text: #000;
+}
+
+body.dark {
+  --bg: #121212;
+  --card: #1e1e1e;
+  --text: #fff;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 12px;
+  transition: background-color 0.3s ease;
+}
+
+img.thumb {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 8px;
+}
