@@ -14,6 +14,7 @@ localStorage.setItem('usuarioId', usuarioId);
 const firebaseConfig = {
   apiKey: "AIzaSyA_TEcwMAv-5QpwLnVr7W5HjP3yehRthrs",
   authDomain: "manutencao-app-3a54c.firebaseapp.com",
+  databaseURL: "https://manutencao-app-3a54c-default-rtdb.firebaseio.com",
   projectId: "manutencao-app-3a54c",
   storageBucket: "manutencao-app-3a54c.firebasestorage.app",
   messagingSenderId: "204232793923",
