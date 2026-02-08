@@ -9,7 +9,7 @@ const firebaseConfig = {
   apiKey: "AIzaSyCEZU25IPiS5K5NDZcJz6PMCuatJfcu79o",
   authDomain: "manutencao-app-cb0d5.firebaseapp.com",
   databaseURL: "https://manutencao-app-cb0d5-default-rtdb.firebaseio.com",
-  projectId: "manutencao-app",
+  projectId: "manutencao-app-cb0d5",
   storageBucket: "manutencao-app-cb0d5.firebasestorage.app",
   messagingSenderId: "948627041750",
   appId: "1:948627041750:web:174f3b2173a680e2cc0877",
