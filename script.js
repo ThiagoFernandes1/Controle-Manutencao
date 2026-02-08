@@ -43,14 +43,22 @@ function sincronizarComFirebase() {
   
   try {
     const caminho = 'usuarios/' + usuarioId + '/manutencoes';
+    console.log('📡 Sincronizando com Firebase:', caminho);
     
+    // Sincronizar: carregar dados do Firebase em tempo real
     db.ref(caminho).on('value', (snapshot) => {
       const dadosFirebase = snapshot.val();
-      if (dadosFirebase) {
-        dados = dadosFirebase;
+      console.log('📥 Dados recebidos do Firebase:', dadosFirebase ? Object.keys(dadosFirebase).length + ' itens' : 'vazio');
+      
+      if (dadosFirebase && typeof dadosFirebase === 'object') {
+        // Converter objeto do Firebase para array
+        dados = Object.values(dadosFirebase);
         localStorage.setItem('manutencao', JSON.stringify(dados));
+        console.log('✅ Dados sincronizados do Firebase');
         render();
       }
+    }, (erro) => {
+      console.log('ℹ️ Erro na sincronização Firebase:', erro.message);
     });
   } catch (erro) {
     console.log('ℹ️ Erro ao sincronizar com Firebase:', erro.message);
@@ -102,7 +110,15 @@ function addItem() {
     // Tentar sincronizar com Firebase em background (sem erros)
     if (firebaseReady && db) {
       const caminho = 'usuarios/' + usuarioId + '/manutencoes/' + novoItem.id;
-      db.ref(caminho).set(novoItem).catch(() => {});
+      console.log('💾 Salvando no Firebase:', caminho);
+      
+      db.ref(caminho).set(novoItem)
+        .then(() => {
+          console.log('✅ Sincronizado com Firebase!');
+        })
+        .catch((erro) => {
+          console.log('ℹ️ Firebase offline (dados salvos localmente):', erro.message);
+        });
     }
     
     limparFormulario();
@@ -260,12 +276,22 @@ function atualizarGrafico(f, a, c) {
 
 // Inicializar aplicação
 console.log('✅ App iniciando...');
+console.log('👤 Usuário ID:', usuarioId);
+
 carregarDados();
 inicializarFirebaseSeDisponivel();
 
-// Tentar Firebase novamente depois de 2 segundos
+// Tentar Firebase novamente depois de 2 segundos (caso scripts ainda estejam carregando)
 setTimeout(() => {
   if (!firebaseReady) {
+    console.log('⏳ Tentando Firebase novamente...');
     inicializarFirebaseSeDisponivel();
   }
 }, 2000);
+
+// Sincronizar com Firebase a cada 10 segundos (se conectado)
+setInterval(() => {
+  if (firebaseReady && db) {
+    sincronizarComFirebase();
+  }
+}, 10000);
