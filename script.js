@@ -2,6 +2,7 @@ let dados = [];
 let tema = localStorage.getItem('tema') || 'light';
 let usuarioId = localStorage.getItem('usuarioId');
 let db = null;
+let firebaseReady = false;
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -15,13 +16,42 @@ const firebaseConfig = {
   measurementId: "G-1R3QZ0T16P"
 };
 
+// Esperar Firebase carregar
+async function aguardarFirebase(tentativas = 0) {
+  if (tentativas > 30) { // 30 tentativas = 3 segundos
+    console.error('❌ Firebase não carregou após 3 segundos');
+    alert('⚠️ Erro ao carregar Firebase!\n\nPossível motivo:\n1. Conexão com internet lenta\n2. Scripts do Firebase bloqueados\n3. Verifique o console (F12) para mais detalhes\n\nTente recarregar a página (F5)');
+    return false;
+  }
+
+  if (typeof firebase !== 'undefined' && firebase.initializeApp) {
+    console.log('✅ Firebase carregado com sucesso!');
+    return true;
+  }
+
+  await new Promise(resolve => setTimeout(resolve, 100));
+  return aguardarFirebase(tentativas + 1);
+}
+
 // Inicializar Firebase
-function initFirebase() {
+async function initFirebase() {
   try {
+    // Esperar Firebase estar disponível
+    const firebaseCarregado = await aguardarFirebase();
+    if (!firebaseCarregado) {
+      throw new Error('Firebase não conseguiu carregar');
+    }
+
+    console.log('🔥 Iniciando Firebase com configuração...');
+    console.log('projectId:', firebaseConfig.projectId);
+    console.log('databaseURL:', firebaseConfig.databaseURL);
+
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig);
       db = firebase.database();
+      firebaseReady = true;
       console.log('✅ Firebase inicializado com sucesso!');
+      console.log('🗄️ Database URL:', firebaseConfig.databaseURL);
     }
     
     if (!usuarioId) {
@@ -34,8 +64,20 @@ function initFirebase() {
     
     carregarDados();
   } catch (erro) {
-    console.error('❌ Erro ao inicializar Firebase:', erro);
-    alert('⚠️ Erro ao conectar com Firebase!\n\nVerifique:\n1. As credenciais estão corretas em script.js?\n2. O Realtime Database está ativado?');
+    firebaseReady = false;
+    console.error('❌ Erro ao inicializar Firebase:', erro.message);
+    console.error('Stack:', erro.stack);
+    
+    // Mostrar erro mais detalhado
+    const mensagem = `⚠️ Erro ao conectar com Firebase!\n\n` +
+      `Erro: ${erro.message}\n\n` +
+      `Verifique:\n` +
+      `1. As credenciais estão corretas em script.js?\n` +
+      `2. O Realtime Database está ativado?\n` +
+      `3. Abra o Console (F12) para ver mais detalhes\n\n` +
+      `GitHub Pages: thiagofernandes1.github.io`;
+    
+    alert(mensagem);
   }
 }
 
@@ -67,9 +109,9 @@ function toggleTema() {
 }
 
 function addItem() {
-  if (!db) {
-    alert('❌ Erro: Banco de dados não conectado!\n\nVerifique as credenciais do Firebase em script.js');
-    console.error('db é null!');
+  if (!firebaseReady || !db) {
+    alert('❌ Erro: Banco de dados não conectado!\n\nO Firebase ainda não está pronto.\n\nTente:\n1. Recarregar a página (F5)\n2. Verifique o console (F12) para mais detalhes\n3. Verifique sua conexão com internet');
+    console.error('Firebase não está pronto. firebaseReady:', firebaseReady, 'db:', db);
     return;
   }
 
@@ -95,17 +137,25 @@ function addItem() {
       dataCriacao: new Date().toISOString()
     };
     
+    const caminho = 'usuarios/' + usuarioId + '/manutencoes/' + novoItem.id;
+    console.log('💾 Salvando em:', caminho);
+    
     // Salvar no Firebase
-    db.ref('usuarios/' + usuarioId + '/manutencoes/' + novoItem.id).set(novoItem)
+    db.ref(caminho).set(novoItem)
       .then(() => {
         console.log('✅ Item salvo com sucesso!', novoItem.id);
         limparFormulario();
         alert('✅ Item adicionado com sucesso!');
       })
       .catch((erro) => {
-        console.error('❌ Erro ao salvar item:', erro);
-        alert('❌ Erro ao salvar item:\n' + erro.message);
+        console.error('❌ Erro ao salvar item:', erro.message);
+        alert('❌ Erro ao salvar item:\n' + erro.message + '\n\nVerifique se o Realtime Database está ativo e as regras permitem acesso.');
       });
+  };
+  
+  reader.onerror = () => {
+    console.error('❌ Erro ao ler arquivo');
+    alert('❌ Erro ao processar a imagem!');
   };
   
   if (file) {
@@ -126,17 +176,37 @@ function limparFormulario() {
 }
 
 function alterarStatus(id, v) {
+  if (!firebaseReady || !db) {
+    console.error('Firebase não está pronto para alterarStatus');
+    alert('⚠️ Firebase não está conectado. Tente recarregar a página (F5)');
+    return;
+  }
+
   const item = dados.find(d => d.id === parseInt(id));
   if (item) {
     item.status = v;
     item.historico.push(`Status alterado para ${v} em ${new Date().toLocaleString()}`);
-    db.ref('usuarios/' + usuarioId + '/manutencoes/' + id).set(item);
+    db.ref('usuarios/' + usuarioId + '/manutencoes/' + id).set(item)
+      .catch((erro) => {
+        console.error('❌ Erro ao alterar status:', erro.message);
+        alert('❌ Erro ao alterar status: ' + erro.message);
+      });
   }
 }
 
 function excluir(id) {
+  if (!firebaseReady || !db) {
+    console.error('Firebase não está pronto para excluir');
+    alert('⚠️ Firebase não está conectado. Tente recarregar a página (F5)');
+    return;
+  }
+
   if (confirm('Excluir item?')) {
-    db.ref('usuarios/' + usuarioId + '/manutencoes/' + id).remove();
+    db.ref('usuarios/' + usuarioId + '/manutencoes/' + id).remove()
+      .catch((erro) => {
+        console.error('❌ Erro ao excluir:', erro.message);
+        alert('❌ Erro ao excluir: ' + erro.message);
+      });
   }
 }
 
