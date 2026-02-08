@@ -1,14 +1,14 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
 import { getDatabase, ref, onValue, set as dbSet, remove as dbRemove } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 
 let dados = [];
 let tema = localStorage.getItem('tema') || 'light';
-let usuarioId = 'usuario-global'; // ID fixo para sincronizar entre dispositivos
+let usuarioId = localStorage.getItem('usuarioId') || null; // será definido após autenticação
 let db = null;
 let firebaseReady = false;
 
-// Salvar usuarioId se novo
-localStorage.setItem('usuarioId', usuarioId);
+// usuário será salvo após autenticação bem sucedida
 
 // Firebase Configuration (novo app fornecido)
 const firebaseConfig = {
@@ -28,17 +28,34 @@ function inicializarFirebaseSeDisponivel() {
     // Inicializar app modular
     const app = initializeApp(firebaseConfig);
     db = getDatabase(app);
-    firebaseReady = true;
-    console.log('✅ Firebase ATIVADO! Usuário ID:', usuarioId);
-    console.log('🗄️ Base de dados pronta para sincronizar');
-    sincronizarComFirebase();
+    const auth = getAuth(app);
+
+    console.log('🗄️ Firebase inicializado; autenticando (anônimo)...');
+
+    // Tentar autenticação anônima (will trigger onAuthStateChanged)
+    signInAnonymously(auth).catch((erro) => {
+      console.log('⚠️ Erro ao autenticar anonimamente:', erro.message);
+    });
+
+    // Quando o estado de autenticação mudar, obter UID e sincronizar
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        usuarioId = user.uid;
+        localStorage.setItem('usuarioId', usuarioId);
+        firebaseReady = true;
+        console.log('✅ Usuário autenticado (anon). UID:', usuarioId);
+        sincronizarComFirebase();
+      } else {
+        console.log('ℹ️ Usuário desautenticado');
+      }
+    });
   } catch (erro) {
     console.log('⚠️ Erro ao inicializar Firebase modular:', erro.message);
   }
 }
 
 function sincronizarComFirebase() {
-  if (!firebaseReady || !db) return;
+  if (!firebaseReady || !db || !usuarioId) return;
   
   try {
     const caminho = 'usuarios/' + usuarioId + '/manutencoes';
@@ -115,7 +132,7 @@ function addItem() {
     localStorage.setItem('manutencao', JSON.stringify(dados));
     
     // Tentar sincronizar com Firebase em background (sem erros)
-    if (firebaseReady && db) {
+    if (firebaseReady && db && usuarioId) {
       const caminho = 'usuarios/' + usuarioId + '/manutencoes/' + novoItem.id;
       console.log('💾 Salvando no Firebase:', caminho);
       
@@ -161,7 +178,7 @@ function alterarStatus(id, v) {
   localStorage.setItem('manutencao', JSON.stringify(dados));
   
   // Tentar sincronizar com Firebase em background
-  if (firebaseReady && db) {
+  if (firebaseReady && db && usuarioId) {
     dbSet(ref(db, 'usuarios/' + usuarioId + '/manutencoes/' + id), item).catch(() => {});
   }
   
@@ -176,7 +193,7 @@ function excluir(id) {
   localStorage.setItem('manutencao', JSON.stringify(dados));
   
   // Tentar deletar do Firebase em background
-  if (firebaseReady && db) {
+  if (firebaseReady && db && usuarioId) {
     dbRemove(ref(db, 'usuarios/' + usuarioId + '/manutencoes/' + id)).catch(() => {});
   }
   
