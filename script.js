@@ -1,3 +1,6 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+import { getDatabase, ref, onValue, set as dbSet, remove as dbRemove } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+
 let dados = [];
 let tema = localStorage.getItem('tema') || 'light';
 let usuarioId = 'usuario-global'; // ID fixo para sincronizar entre dispositivos
@@ -7,37 +10,29 @@ let firebaseReady = false;
 // Salvar usuarioId se novo
 localStorage.setItem('usuarioId', usuarioId);
 
-// Firebase Configuration
+// Firebase Configuration (novo app fornecido)
 const firebaseConfig = {
-  apiKey: "AIzaSyCEZU25IPiS5K5NDZcJz6PMCuatJfcu79o",
-  authDomain: "manutencao-app-cb0d5.firebaseapp.com",
-  databaseURL: "https://manutencao-app-cb0d5-default-rtdb.firebaseio.com",
-  projectId: "manutencao-app-cb0d5",
-  storageBucket: "manutencao-app-cb0d5.firebasestorage.app",
-  messagingSenderId: "948627041750",
-  appId: "1:948627041750:web:174f3b2173a680e2cc0877",
-  measurementId: "G-1R3QZ0T16P"
+  apiKey: "AIzaSyA_TEcwMAv-5QpwLnVr7W5HjP3yehRthrs",
+  authDomain: "manutencao-app-3a54c.firebaseapp.com",
+  projectId: "manutencao-app-3a54c",
+  storageBucket: "manutencao-app-3a54c.firebasestorage.app",
+  messagingSenderId: "204232793923",
+  appId: "1:204232793923:web:45c76377ffcd4c222259f6"
 };
 
 // Tentar inicializar Firebase se disponível (sem erros)
 function inicializarFirebaseSeDisponivel() {
-  console.log('🔧 Tentando inicializar Firebase...');
+  console.log('🔧 Tentando inicializar Firebase (modular)...');
   try {
-    if (typeof firebase !== 'undefined' && firebase.initializeApp) {
-      console.log('✅ Firebase SDK detectado');
-      if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-        db = firebase.database();
-        firebaseReady = true;
-        console.log('✅ Firebase ATIVADO! Usuário ID:', usuarioId);
-        console.log('🗄️ Base de dados pronta para sincronizar');
-        sincronizarComFirebase();
-      }
-    } else {
-      console.log('⚠️ Firebase SDK não encontrado - usando localStorage');
-    }
+    // Inicializar app modular
+    const app = initializeApp(firebaseConfig);
+    db = getDatabase(app);
+    firebaseReady = true;
+    console.log('✅ Firebase ATIVADO! Usuário ID:', usuarioId);
+    console.log('🗄️ Base de dados pronta para sincronizar');
+    sincronizarComFirebase();
   } catch (erro) {
-    console.log('⚠️ Erro ao init Firebase:', erro.message);
+    console.log('⚠️ Erro ao inicializar Firebase modular:', erro.message);
   }
 }
 
@@ -48,15 +43,14 @@ function sincronizarComFirebase() {
     const caminho = 'usuarios/' + usuarioId + '/manutencoes';
     console.log('📡 Sincronizando com Firebase:', caminho);
     
-    // Sincronizar: carregar dados do Firebase em tempo real
-    // Registrar listener para mudanças em tempo real
-    const listener = db.ref(caminho).on('value', (snapshot) => {
+    // Sincronizar: carregar dados do Firebase em tempo real usando modular API
+    const caminhoRef = ref(db, caminho);
+    onValue(caminhoRef, (snapshot) => {
       const dadosFirebase = snapshot.val();
       if (dadosFirebase) {
         const itemCount = Array.isArray(dadosFirebase) ? dadosFirebase.length : Object.keys(dadosFirebase).length;
         console.log('📥 Dados do Firebase:', itemCount, 'itens');
-        
-        // Se é um objeto, pode ser um array ou objeto com IDs como chaves
+
         if (!Array.isArray(dadosFirebase)) {
           dados = Object.values(dadosFirebase);
         } else {
@@ -66,14 +60,9 @@ function sincronizarComFirebase() {
         console.log('📥 Firebase vazio - nenhum dado');
         dados = [];
       }
-      
-      if (dadosFirebase && typeof dadosFirebase === 'object') {
-        // Converter objeto do Firebase para array
-        dados = Object.values(dadosFirebase);
-        localStorage.setItem('manutencao', JSON.stringify(dados));
-        console.log('✅ Dados sincronizados do Firebase');
-        render();
-      }
+      localStorage.setItem('manutencao', JSON.stringify(dados));
+      console.log('✅ Dados sincronizados do Firebase');
+      render();
     }, (erro) => {
       console.log('ℹ️ Erro na sincronização Firebase:', erro.message);
     });
@@ -129,7 +118,7 @@ function addItem() {
       const caminho = 'usuarios/' + usuarioId + '/manutencoes/' + novoItem.id;
       console.log('💾 Salvando no Firebase:', caminho);
       
-      db.ref(caminho).set(novoItem)
+      dbSet(ref(db, caminho), novoItem)
         .then(() => {
           console.log('✅ Sincronizado com Firebase!');
         })
@@ -172,7 +161,7 @@ function alterarStatus(id, v) {
   
   // Tentar sincronizar com Firebase em background
   if (firebaseReady && db) {
-    db.ref('usuarios/' + usuarioId + '/manutencoes/' + id).set(item).catch(() => {});
+    dbSet(ref(db, 'usuarios/' + usuarioId + '/manutencoes/' + id), item).catch(() => {});
   }
   
   render();
@@ -187,7 +176,7 @@ function excluir(id) {
   
   // Tentar deletar do Firebase em background
   if (firebaseReady && db) {
-    db.ref('usuarios/' + usuarioId + '/manutencoes/' + id).remove().catch(() => {});
+    dbRemove(ref(db, 'usuarios/' + usuarioId + '/manutencoes/' + id)).catch(() => {});
   }
   
   render();
