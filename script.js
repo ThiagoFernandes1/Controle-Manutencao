@@ -301,3 +301,21 @@ setInterval(() => {
     sincronizarComFirebase();
   }
 }, 10000);
+
+// Bind globals so HTML inline handlers work when script is a module
+function bindGlobals() {
+  const ids = ['nome','local','categoria','status','prioridade','sla','foto','lista','listaHistorico','grafico','feito','andamento','concluidos','slaVencido'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) window[id] = el;
+  });
+
+  // Expose functions used by inline handlers
+  window.addItem = addItem;
+  window.toggleTema = toggleTema;
+  window.alterarStatus = alterarStatus;
+  window.excluir = excluir;
+  window.verHistorico = verHistorico;
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindGlobals); else bindGlobals();
